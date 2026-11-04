@@ -1,6 +1,7 @@
 #!/bin/bash
 # One-time setup. NOT an sbatch script: run it step by step on an interactive node,
-#   srun -M htc -p interactive --gres=gpu:1 --cpus-per-task=8 --mem=64G --time=03:00:00 --pty /bin/bash
+#   srun -M htc -p interactive --cpus-per-task=4 --mem=32G --time=02:00:00 --pty /bin/bash
+# (no GPU needed; a GPU request can queue for a long time)
 # after copying this repository to $DATA/thesis/code (rsync from the Mac, see README).
 set -eo pipefail
 
@@ -20,8 +21,12 @@ pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip install -e ".[extract,dev]" bitsandbytes
 pip install "dadapy @ git+https://github.com/sissa-data-science/DADApy@d729b8835e771001ec7ba6ca68938b737b96edae"
 mkdir -p env && pip freeze > env/arc-freeze.txt     # commit this file
-python -c 'import torch; print("cuda:", torch.cuda.is_available(), torch.cuda.get_device_name(0))'
-python /apps/common/bin/pytorch-gpu-cc.py            # confirms which gpu_cc constraints this torch supports
+# GPU checks run only if this node has a GPU; setup itself does not need one
+# (the smoke jobs check the GPU anyway).
+python -c 'import torch; print("cuda:", torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else "")'
+if nvidia-smi >/dev/null 2>&1; then
+  python /apps/common/bin/pytorch-gpu-cc.py          # confirms which gpu_cc constraints this torch supports
+fi
 pytest -q
 
 # 2. Hugging Face login (Llama-3 is gated: accept the licence on huggingface.co first).
