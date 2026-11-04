@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Data and outputs: hidden states live on ARC $DATA, never in git
+data/
+states/
+results/raw/
+*.npy
+*.npz
+*.pt
+*.safetensors
+*.pkl
+
+# Logs
+logs/
+*.out
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
