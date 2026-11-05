@@ -24,3 +24,6 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || ec
 
 # sync_back <scratch_dir> <dest_dir>: copy results to $DATA; also on the pre-timeout signal
 sync_back() { mkdir -p "$2" && rsync -a "$1"/ "$2"/ && echo "synced to $2"; }
+# run <cmd...>: run in the background and wait, so a trap fires as soon as the signal
+# arrives (bash defers traps until a foreground command exits, i.e. never at a timeout)
+run() { "$@" & wait $!; }

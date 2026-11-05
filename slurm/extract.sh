@@ -15,6 +15,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint='gpu_cc:8.0|gpu_cc:8.6|gpu_cc:8.9|gpu_cc:9.0'
 #SBATCH --output=logs/%x_%j.out
+#SBATCH --signal=B:SIGINT@120   # trap fires 2 min before the time limit, results get synced
 
 set -eo pipefail
 NAME=$1; SEQFILE=$2; shift 2
@@ -26,5 +27,5 @@ if [ -f "$DEST/meta.json" ] && grep -q '"status": "complete"' "$DEST/meta.json";
 fi
 trap 'sync_back $OUT $DEST; exit 2' SIGINT SIGTERM
 
-python scripts/extract.py --model meta-llama/Meta-Llama-3-8B --sequences "$SEQS/$SEQFILE" --out "$OUT" "$@"
+run python scripts/extract.py --model meta-llama/Meta-Llama-3-8B --sequences "$SEQS/$SEQFILE" --out "$OUT" "$@"
 sync_back "$OUT" "$DEST"

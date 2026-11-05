@@ -39,6 +39,7 @@ p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu
 p.add_argument("--out", type=Path, required=True)
 args = p.parse_args()
 
+print(f"imports done at {time.strftime('%H:%M:%S')}", flush=True)
 revs = json.loads((REPO / "configs" / "revisions.json").read_text())
 revision = revs.get(args.model)
 meta = runinfo.base_meta(args, REPO)
