@@ -9,6 +9,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:1
+#SBATCH --constraint='gpu_cc:7.5|gpu_cc:8.0|gpu_cc:8.6|gpu_cc:8.9|gpu_cc:9.0'   # our torch build has no kernels for V100/P100
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --signal=B:SIGINT@120   # trap fires 2 min before the time limit, results get synced
 
