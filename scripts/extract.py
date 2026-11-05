@@ -12,16 +12,25 @@ else means the run is unusable.
     python scripts/extract.py --sequences seqs.jsonl --out $SCRATCH/run --limit 512
 """
 
-import argparse
-import json
 import time
-from pathlib import Path
 
-import numpy as np
-import torch
-from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, LlamaConfig
+T0 = time.time()
 
-from layergeom import data, extract, runinfo
+import argparse  # noqa: E402
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, LlamaConfig  # noqa: E402
+
+from layergeom import data, extract, runinfo  # noqa: E402
+
+
+def stamp(msg: str) -> None:
+    """Progress line with seconds since the script started (for sizing jobs)."""
+    print(f"[{time.time() - T0:6.0f}s] {msg}", flush=True)
+
 
 REPO = Path(__file__).resolve().parents[1]
 DTYPES = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}
@@ -39,7 +48,7 @@ p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu
 p.add_argument("--out", type=Path, required=True)
 args = p.parse_args()
 
-print(f"imports done at {time.strftime('%H:%M:%S')}", flush=True)
+stamp("imports done")
 revs = json.loads((REPO / "configs" / "revisions.json").read_text())
 revision = revs.get(args.model)
 meta = runinfo.base_meta(args, REPO)
@@ -51,6 +60,7 @@ seq_meta, seqs = data.read_jsonl(args.sequences)
 seqs = seqs[: args.limit] if args.limit else seqs
 meta["sequences_meta"] = seq_meta
 
+stamp(f"{len(seqs)} sequences read")
 tok = AutoTokenizer.from_pretrained(args.model, revision=revision)
 tok.pad_token = tok.pad_token or tok.eos_token
 tok.padding_side = "right"  # last real token is found from the mask; left padding would shift RoPE positions
@@ -71,9 +81,11 @@ elif args.dtype == "int8":
     )
 else:
     model = AutoModelForCausalLM.from_pretrained(args.model, revision=revision, torch_dtype=DTYPES[args.dtype])
+stamp("model loaded")
 if args.dtype != "int8":
     model.to(args.device)
 model.eval()
+stamp(f"model on {args.device}")
 
 rec = extract.LastTokenRecorder(model)
 enc = tok([s.text for s in seqs], padding=True, return_tensors="pt")
@@ -87,7 +99,7 @@ meta["checks"] = {
     "final_norm_rel_err": extract.check_final_norm(model, rec, ids, mask),
     "bos_first": bool((ids[:, 0] == tok.bos_token_id).all()) if tok.bos_token_id is not None else None,
 }
-print("checks:", meta["checks"], flush=True)
+stamp(f"checks: {meta['checks']}")
 
 n, D = len(seqs), model.config.hidden_size
 outs = extract.open_outputs(args.out / "states", rec.names, n, D)
@@ -97,7 +109,7 @@ for b in range(0, n, args.batch_size):
         if not torch.isfinite(arr).all():
             raise RuntimeError(f"non-finite values at {name}, batch {b}")
         outs[name][b : b + len(arr)] = arr.numpy().astype(np.float16)
-    print(f"{min(b + args.batch_size, n)}/{n}", flush=True)
+    stamp(f"{min(b + args.batch_size, n)}/{n}")
 for m in outs.values():
     m.flush()
 np.save(args.out / "docs.npy", np.array([s.doc for s in seqs]))
