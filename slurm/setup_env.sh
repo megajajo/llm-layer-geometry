@@ -21,7 +21,7 @@ source activate "$THESIS_ROOT/envs/thesis"
 pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip install -e ".[extract,dev]" bitsandbytes
 # fsspec cap: DADApy pulls jax/flax -> orbax -> gcsfs, which otherwise upgrades fsspec past what datasets allows
-pip install "fsspec[http]<=2026.7.0" "dadapy @ git+https://github.com/sissa-data-science/DADApy@d729b8835e771001ec7ba6ca68938b737b96edae"
+pip install "fsspec[http]<=2026.7.0" "gcsfs<=2026.7.0" "dadapy @ git+https://github.com/sissa-data-science/DADApy@d729b8835e771001ec7ba6ca68938b737b96edae"
 mkdir -p env && pip freeze > env/arc-freeze.txt     # commit this file
 # GPU checks run only if this node has a GPU; setup itself does not need one
 # (the smoke jobs check the GPU anyway).
