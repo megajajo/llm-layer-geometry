@@ -2,13 +2,13 @@
 # One-time setup. NOT an sbatch script: run it step by step on an interactive node,
 #   srun -M htc -p interactive --cpus-per-task=4 --mem=32G --time=02:00:00 --pty /bin/bash
 # (no GPU needed; a GPU request can queue for a long time)
-# after copying this repository to $DATA/thesis/code (rsync from the Mac, see README).
+# from the root of the cloned repository (any location); data goes to $THESIS_ROOT.
 set -eo pipefail
 
 export THESIS_ROOT=${THESIS_ROOT:-$DATA/thesis}
 export HF_HOME=$THESIS_ROOT/hf
 mkdir -p "$THESIS_ROOT"/{envs,hf,sequences,runs}
-cd "$THESIS_ROOT/code"
+cd "$(dirname "$0")/.."
 
 # 1. Environment (ARC's documented PyTorch recipe, ARC.md)
 module purge

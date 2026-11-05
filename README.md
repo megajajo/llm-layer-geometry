@@ -24,13 +24,9 @@ Every output carries a `status` field that is set to `complete` only at the very
 
 ## On ARC
 
-Copy the code (from the Mac; the gateway sees only `$DATA`):
+Clone the repository anywhere under `$DATA` (e.g. `$DATA/llm-layer-geometry`). Environment, Hugging Face cache, sequences and runs go to `$DATA/thesis` (`THESIS_ROOT`), outside the repository.
 
-```bash
-rsync -av --exclude .venv --exclude logs ./ <user>@gateway.arc.ox.ac.uk:/data/<project>/<user>/thesis/code/
-```
-
-Then, in order, from `$DATA/thesis/code` (submit from there; `mkdir -p logs` first):
+Then, in order, from the repository root (submit from there; `mkdir -p logs` first):
 
 1. **Setup**, interactively: follow `slurm/setup_env.sh` step by step on an interactive node. Commit the resulting `configs/revisions.json` and `env/arc-freeze.txt`.
 2. **Smoke 1**: `sbatch slurm/smoke_tiny.sh`, ~2 min on `devel`. Tiny random model; tests env, GPU, offline cache, writing and syncing results, the checker.
