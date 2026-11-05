@@ -14,7 +14,8 @@ cd "$(dirname "$0")/.."
 module purge
 module load Anaconda3/2025.06-1
 if [ ! -d "$THESIS_ROOT/envs/thesis" ]; then
-  conda create -y --prefix "$THESIS_ROOT/envs/thesis" python=3.11
+  # conda-forge only: Anaconda's default channels require accepting their Terms of Service
+  conda create -y --prefix "$THESIS_ROOT/envs/thesis" --override-channels -c conda-forge python=3.11
 fi
 source activate "$THESIS_ROOT/envs/thesis"
 pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130
