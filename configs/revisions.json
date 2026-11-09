@@ -1,4 +1,8 @@
 {
   "Salesforce/wikitext/wikitext-103-raw-v1": "b08601e04326c79dfdd32d625aee71d232d685c3",
-  "meta-llama/Meta-Llama-3-8B": "8cde5ca8380496c9a6cc7ef3a8b46a0372a1d920"
+  "meta-llama/Meta-Llama-3-8B": "8cde5ca8380496c9a6cc7ef3a8b46a0372a1d920",
+  "HuggingFaceFW/fineweb/sample-10BT": {
+    "revision": "9bb295ddab0e05d785b879661af7260fed5140fc",
+    "file": "sample/10BT/000_00000.parquet"
+  }
 }
