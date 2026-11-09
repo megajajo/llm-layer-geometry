@@ -28,7 +28,7 @@ Clone the repository anywhere under `$DATA` (e.g. `$DATA/llm-layer-geometry`). E
 
 Then, in order, from the repository root (submit from there; `mkdir -p logs` first):
 
-1. **Setup**, interactively: follow `slurm/setup_env.sh` step by step on an interactive node. Commit the resulting `configs/revisions.json` and `env/arc-freeze.txt`.
+1. **Setup**, interactively: follow `slurm/setup_env.sh` step by step on an interactive node. Commit the resulting `configs/revisions.json` and `env/arc-freeze.txt`. Setup ends with `slurm/pack_env.sh`, which packs the env into one file that jobs unpack onto node-local disk (imports straight from `$DATA` take minutes). **Re-run `pack_env.sh` after every change to the env**; jobs refuse to start on a stale pack.
 2. **Smoke 1**: `sbatch slurm/smoke_tiny.sh`, ~2 min on `devel`. Tiny random model; tests env, GPU, offline cache, writing and syncing results, the checker.
 3. **Smoke 2**: `sbatch slurm/smoke_llama.sh`, ~15 min. Real Llama-3-8B in bf16 on 1,024 sequences, all measures on one partition.
 4. Look at both logs and `check_run.py` output (`OK` at the end). Only then:

@@ -30,6 +30,7 @@ if nvidia-smi >/dev/null 2>&1; then
   python /apps/common/bin/pytorch-gpu-cc.py          # confirms which gpu_cc constraints this torch supports
 fi
 pytest -q
+bash slurm/pack_env.sh     # one-file copy of the env for the jobs; re-run after any env change
 
 # 2. Hugging Face login (Llama-3 is gated: accept the licence on huggingface.co first).
 #    The token is stored under $HF_HOME on $DATA, not in $HOME.
