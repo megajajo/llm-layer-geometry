@@ -39,6 +39,8 @@ class LastTokenRecorder:
     def _hook(self, name):
         def fn(_module, _inp, output):
             h = output[0] if isinstance(output, tuple) else output
+            if h.dim() != 3:  # a module called on single vectors (check_final_norm), not a forward pass
+                return
             rows = torch.arange(h.shape[0], device=h.device)
             self.out[name] = h[rows, self.last_idx.to(h.device)].float().cpu()
 

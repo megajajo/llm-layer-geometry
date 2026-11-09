@@ -10,6 +10,11 @@ Our choices where the paper is silent (record them with every run):
   `@-@` markers are separate tokens), counted before detokenization;
 - windows never cross article boundaries; heading lines (` = ... = `) are dropped;
 - each window is detokenized (Moses-style spacing undone) before the model sees it.
+
+FineWeb windows (`fineweb_windows`, `shuffled_stream_windows`) are cut in model tokens
+and stored as token ids, so extraction does not re-tokenize: one window of `long`
+tokens per document, and a short window = the last `short` tokens of the same long
+window (same documents, same final token; only the context length differs).
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ class Sequence:
     text: str
     doc: int  # article index, -1 for shuffled sequences
     start: int  # token offset within the article (or the shuffled corpus)
+    ids: list[int] | None = None  # model token ids without BOS (FineWeb); None = tokenize `text`
+    source_id: str | None = None  # dataset's own document id (FineWeb `id`)
 
 
 def articles(lines) -> tuple[list[str], list[np.ndarray]]:
@@ -100,6 +107,59 @@ def sample_windows(
     return out
 
 
+def fineweb_windows(
+    doc_ids: list[list[int]], doc_index: list[int], long: int, short: int, seed: int = 0
+) -> tuple[list[tuple[int, int, list[int]]], list[tuple[int, int, list[int]]]]:
+    """One random window of `long` tokens per document, and its last `short` tokens.
+
+    `doc_ids[i]` are the token ids of document `doc_index[i]` (every one >= `long`).
+    Returns (long, short) lists of (doc, start, ids); short[i] is the suffix of long[i].
+    """
+    if short > long:
+        raise ValueError("short window longer than long window")
+    rng = np.random.default_rng(seed)
+    longs, shorts = [], []
+    for ids, di in zip(doc_ids, doc_index):
+        if len(ids) < long:
+            raise ValueError(f"document {di} has {len(ids)} < {long} tokens")
+        s = int(rng.integers(0, len(ids) - long + 1))
+        w = list(ids[s : s + long])
+        longs.append((di, s, w))
+        shorts.append((di, s + long - short, w[-short:]))
+    return longs, shorts
+
+
+def shuffle_words(texts: list[str], seed: int = 0) -> list[str]:
+    """Corpus-wide word permutation (Cheng's shuffled control), re-split into pseudo-documents
+    with the original word counts."""
+    words = [t.split() for t in texts]
+    perm = np.random.default_rng(seed).permutation(np.array([w for ws in words for w in ws], dtype=object))
+    out, i = [], 0
+    for ws in words:
+        out.append(" ".join(perm[i : i + len(ws)]))
+        i += len(ws)
+    return out
+
+
+def shuffled_stream_windows(
+    doc_ids: list[list[int]], n: int, long: int, short: int, seed: int = 0
+) -> tuple[list[tuple[int, int, list[int]]], list[tuple[int, int, list[int]]]]:
+    """n non-overlapping `long`-token windows at random slots of the concatenated
+    (already word-shuffled) token stream, and their last `short` tokens. doc = -1."""
+    stream = np.concatenate([np.asarray(d, dtype=np.int64) for d in doc_ids])
+    n_slots = len(stream) // long
+    if n_slots < n:
+        raise ValueError(f"stream has {n_slots} slots of {long} tokens, need {n}")
+    slots = np.random.default_rng(seed).choice(n_slots, size=n, replace=False)
+    longs, shorts = [], []
+    for k in slots:
+        s = int(k) * long
+        w = stream[s : s + long].tolist()
+        longs.append((-1, s, w))
+        shorts.append((-1, s + long - short, w[-short:]))
+    return longs, shorts
+
+
 def load_wikitext_lines(split: str = "train", revision: str | None = None) -> list[str]:
     from datasets import load_dataset
 
@@ -112,7 +172,9 @@ def write_jsonl(seqs: list[Sequence], path: Path, meta: dict) -> None:
     with open(path, "w") as f:
         f.write(json.dumps({"meta": meta}) + "\n")
         for s in seqs:
-            f.write(json.dumps({"text": s.text, "doc": s.doc, "start": s.start}) + "\n")
+            row = {"text": s.text, "doc": s.doc, "start": s.start}
+            row.update({k: v for k, v in (("ids", s.ids), ("source_id", s.source_id)) if v is not None})
+            f.write(json.dumps(row) + "\n")
 
 
 def read_jsonl(path: Path) -> tuple[dict, list[Sequence]]:

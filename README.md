@@ -16,8 +16,10 @@ pytest
 
 1. `scripts/prefetch.py`: download weights and dataset, pin revisions in `configs/revisions.json`.
 2. `scripts/make_sequences.py`: Cheng-style 20-token WikiText-103 sequences, normal and corpus-shuffled, shared by every model and condition.
+2b. `scripts/make_sequences_fineweb.py`: FineWeb sample-10BT windows stored as Llama token ids, normal and word-shuffled, at two lengths from the same documents (256 tokens, and the last N tokens of the same window).
 3. `scripts/extract.py`: last-token states at every site (`layer_00` embeddings … `layer_32` pre-norm, `final_norm`), saved as one float16 `.npy` per site, plus `meta.json` with provenance and sanity checks (padding invariance, final-norm identity).
 4. `scripts/measure.py`: spread (participation ratio, eigenvalue entropy) and ID (TwoNN, ABIDE, GRIDE across scales) per site × partition × variant (`raw`, `unit`, `no_outliers`) to JSONL.
+4b. `scripts/bootstrap_spread.py`: document bootstrap (default B = 200) of the spread measures at every site, on GPU, for peak-location intervals; `bootstrap_spread.jsonl`.
 5. `scripts/check_run.py`: validates a run directory; exits non-zero on any problem.
 
 Every output carries a `status` field that is set to `complete` only at the very end; anything else is unusable.
@@ -33,6 +35,8 @@ Then, in order, from the repository root (submit from there; `mkdir -p logs` fir
 3. **Smoke 2**: `sbatch slurm/smoke_llama.sh`, ~15 min. Real Llama-3-8B in bf16 on 1,024 sequences, all measures on one partition.
 4. Look at both logs and `check_run.py` output (`OK` at the end). Only then:
 5. **Full runs**: `sbatch slurm/extract.sh <name> <sequences file> [args]` per condition, then `sbatch --array=0-33 slurm/measure.sh <name>`.
+
+6. **E1 completion** (Llama-3-8B: untrained seeds 0–2, FineWeb short/256, bootstrap). On an interactive node: `python scripts/prefetch.py --fineweb-shard sample/10BT/000_00000.parquet`; set N = median of `$THESIS_ROOT/runs/llama3-8b_normal/n_tokens.npy` minus 1 (BOS); `python scripts/make_sequences_fineweb.py --short-tokens N --out $THESIS_ROOT/sequences`. Smoke: `sbatch --time=00:30:00 slurm/extract.sh smoke_fw256 fineweb10bt_normal_n50000_len256_seed0.jsonl --limit 1024 --batch-size 32` and `sbatch slurm/bootstrap.sh llama3-8b_normal --B 5 --out bootstrap_smoke.jsonl`. Then `FW_SHORT=N bash slurm/submit_e1.sh` (login node) submits the whole matrix with dependencies.
 
 Results land in `$DATA/thesis/runs/<name>`; pull the small `metrics*.jsonl` and `meta.json` files back to the Mac with rsync.
 

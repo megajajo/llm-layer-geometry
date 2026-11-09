@@ -51,6 +51,18 @@ def eigenvalues(X: np.ndarray) -> np.ndarray:
     return np.clip(lam, 0.0, None)
 
 
+def weighted_eigenvalues(X, w) -> np.ndarray:
+    """Covariance eigenvalues of a centred torch tensor X (n, D) under integer sequence
+    weights w (n,), descending; equals `eigenvalues` for w = 1 (bootstrap_spread.py)."""
+    import torch
+
+    W = w.sum()
+    mu = (w @ X) / W
+    C = (X * w[:, None]).T @ X / W - torch.outer(mu, mu)
+    lam = torch.linalg.eigvalsh(C * (W / (W - 1)))
+    return np.clip(lam.double().cpu().numpy()[::-1], 0.0, None)
+
+
 def spread(lam: np.ndarray) -> dict:
     p = lam / lam.sum()
     nz = p[p > 0]

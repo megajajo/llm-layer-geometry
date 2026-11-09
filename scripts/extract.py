@@ -88,8 +88,18 @@ model.eval()
 stamp(f"model on {args.device}")
 
 rec = extract.LastTokenRecorder(model)
-enc = tok([s.text for s in seqs], padding=True, return_tensors="pt")
-ids, mask = enc["input_ids"], enc["attention_mask"]
+if seqs[0].ids is not None:
+    # pre-tokenized windows (FineWeb): BOS + ids, right-padded, no re-tokenization
+    rows = [[tok.bos_token_id, *s.ids] for s in seqs]
+    width = max(map(len, rows))
+    ids = torch.full((len(rows), width), tok.pad_token_id, dtype=torch.long)
+    mask = torch.zeros((len(rows), width), dtype=torch.long)
+    for i, r in enumerate(rows):
+        ids[i, : len(r)] = torch.tensor(r)
+        mask[i, : len(r)] = 1
+else:
+    enc = tok([s.text for s in seqs], padding=True, return_tensors="pt")
+    ids, mask = enc["input_ids"], enc["attention_mask"]
 
 # Sanity checks on the first sequences before the full pass. A padding bug gives errors
 # of order 1; bf16 kernels differ between batch shapes at the ~1e-2 level.
