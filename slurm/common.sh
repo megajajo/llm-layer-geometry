@@ -17,6 +17,13 @@ RUNS=$THESIS_ROOT/runs
 ENV=$THESIS_ROOT/envs/thesis
 PACK=$ENV.tar
 
+# Jobs inherit the submitting shell's environment. If a conda env was active at sbatch time,
+# `source activate` below thinks it is already active and skips activation, leaving the base
+# Python (no torch). Drop all inherited conda/Python state first.
+for v in $(compgen -e | grep -E '^(CONDA_(PREFIX(_[0-9]+)?|DEFAULT_ENV|SHLVL|PROMPT_MODIFIER)|PYTHONHOME|PYTHONPATH)$'); do
+  unset "$v"
+done
+
 module purge
 module load Anaconda3/2025.06-1
 # Run from a copy of the env on node-local disk: imports from $DATA are very slow.
@@ -34,7 +41,14 @@ else
   echo "no env pack (or no \$TMPDIR): using $ENV directly, imports will be slow"
   source activate "$ENV"
 fi
-export PYTHONPATH=$PWD/src${PYTHONPATH:+:$PYTHONPATH}   # layergeom is not in the pack
+export PYTHONPATH=$PWD/src   # layergeom is not in the pack
+
+# Fail fast unless `python` is the env's own interpreter (not the module's base Python).
+PY_PREFIX=$(realpath "$(python -c 'import sys; print(sys.prefix)')")
+if [ "$PY_PREFIX" != "$(realpath "$ENV")" ] && [ "$PY_PREFIX" != "$(realpath "${TMPDIR:-/nonexistent}/env" 2>/dev/null)" ]; then
+  echo "wrong python: $(command -v python) (prefix $PY_PREFIX), expected the env at $ENV"; exit 1
+fi
+echo "python: $PY_PREFIX"
 
 echo "job $SLURM_JOB_ID on $(hostname) at $(date)"
 echo "code commit $(git rev-parse --short HEAD 2>/dev/null) $(git status --porcelain 2>/dev/null | grep -q . && echo '(dirty)')"
